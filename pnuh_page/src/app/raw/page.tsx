@@ -1,3 +1,18 @@
+///import hrv from "C:\Users\AIA01\Desktop\project\PNUh\pnuh_page\public\hrv_json\health_data_HeartRateRecord_20240416_154527.json";
+
+///console.log(hrv);
+
+// var jss = {
+//   id : 'sss',
+//   pwd : '1234'
+// };
+
+// var keys = Object.keys(jss);
+// for (var i=0; i<keys.length; i++) {
+//   var key = keys[i]
+//   console.log("key : " + key + ", value : " + jss.id )
+// }
+
 const TestPage = () => {
     return (
       <div className="p-8">
