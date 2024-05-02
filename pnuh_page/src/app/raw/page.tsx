@@ -1,6 +1,7 @@
-///import hrv from "C:\Users\AIA01\Desktop\project\PNUh\pnuh_page\public\hrv_json\health_data_HeartRateRecord_20240416_154527.json";
-
-///console.log(hrv);
+///import hrvs from "C:\Users\AIA01\Desktop\project\PNUh\pnuh_page\public\hrv_json\health_data_HeartRateRecord_20240416_154527.json";
+import hrvs from "../raw/health_data_HeartRateRecord_20240416_154527.json"
+export var hr = hrvs;
+///export const txt = document.getElementById('aaaaaaaaa');
 
 // var jss = {
 //   id : 'sss',
@@ -13,6 +14,10 @@
 //   console.log("key : " + key + ", value : " + jss.id )
 // }
 
+
+// <pre>{JSON.stringify(hr, null, 2)}</pre>
+
+
 const TestPage = () => {
     return (
       <div className="p-8">
@@ -21,6 +26,7 @@ const TestPage = () => {
         <button className="bg-blue-500 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded">
           Click me
         </button>
+        
       </div>
     );
   };
