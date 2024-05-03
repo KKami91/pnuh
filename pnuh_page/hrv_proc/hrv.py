@@ -7,10 +7,29 @@ import json
 import datetime
 import os
 import time
+import socket
+import io
+import base64
+import sys
+
+
+
+
+# 데이터의 모양
+# [
+#   {"endTime":"2024-03-19T11:45:00+0900","endZoneOffset":{},"metadata":{"clientRecordVersion":0,"dataOrigin":{"packageName":"com.fitbit.FitbitMobile"},"id":"306726d1-03a5-4f7c-ae8a-a9dac2a068c5","lastModifiedTime":"2024-03-29T09:56:43+0900","recordingMethod":0},"samples":[{"beatsPerMinute":76,"time":"2024-03-19T11:45:00+0900"}],"startTime":"2024-03-19T11:45:00+0900","startZoneOffset":{}},
+#   {"endTime":"2024-03-19T11:46:00+0900","endZoneOffset":{},"metadata":{"clientRecordVersion":0,"dataOrigin":{"packageName":"com.fitbit.FitbitMobile"},"id":"c01de5a1-3a5b-43b1-9604-3d26e18ea9af","lastModifiedTime":"2024-03-29T09:56:43+0900","recordingMethod":0},"samples":[{"beatsPerMinute":86,"time":"2024-03-19T11:46:00+0900"}],"startTime":"2024-03-19T11:46:00+0900","startZoneOffset":{}},
+#   ...
+#   ...
+#   {"endTime":"2024-04-16T15:26:00+0900","endZoneOffset":{},"metadata":{"clientRecordVersion":0,"dataOrigin":{"packageName":"com.fitbit.FitbitMobile"},"id":"52932869-ea3d-4a2b-b8fd-94a0993e2898","lastModifiedTime":"2024-04-16T15:44:24+0900","recordingMethod":0},"samples":[{"beatsPerMinute":99,"time":"2024-04-16T15:26:00+0900"}],"startTime":"2024-04-16T15:26:00+0900","startZoneOffset":{}},
+#   {"endTime":"2024-04-16T15:27:00+0900","endZoneOffset":{},"metadata":{"clientRecordVersion":0,"dataOrigin":{"packageName":"com.fitbit.FitbitMobile"},"id":"fbccc5eb-826a-46ef-a06b-744c82ef20a2","lastModifiedTime":"2024-04-16T15:44:24+0900","recordingMethod":0},"samples":[{"beatsPerMinute":101,"time":"2024-04-16T15:27:00+0900"}],"startTime":"2024-04-16T15:27:00+0900","startZoneOffset":{}}  
+# ]
+# 현재 파일에서는 python 폴더에서 임시로 20240330_hrvs.json 으로 빈 파일을 만들고 진행 중.
 
 def get_time_domain_features(nn_intervals) -> dict:
+    # hrv 데이터를 처리하는 내용
+    
     # nn_intervals(ms) => 60000/bpm
-
     # nn intervals의 차이 (각 인접한 다음 nn interval의 차)
     diff_nni = np.diff(nn_intervals)
     # 데이터 길이
@@ -73,8 +92,6 @@ def date_conv(date_str):
 def hrv_stress(hrv_dict_):
     sdnn_max = 100
     sdnn_min = 0
-    rmssd_max = 100
-    rmssd_min = 0
     
     # SDNN 스트레스 계산
     sdnn_score = (hrv_dict_['sdnn'] - sdnn_min) / (sdnn_max - sdnn_min)
@@ -83,16 +100,15 @@ def hrv_stress(hrv_dict_):
     return sdnn_stress_score
 
 def bind_hours(df_):
+    # 데이터를 원하는 날짜 분에서 시간 단위로 묶어주기
     cnt = 1
     cnt_ = 0
     hours_cnt = 0
     flags = 0
     time_idx = 0
     res_list = []
-    #df.loc[0] = {'endTime':'2009-01-01 15:59:00', 'bpm':40}
+    # 임시로 앞에 사라지는 것을 방지하기 위해 쓰레기 데이터 삽입
     df_ = pd.concat([pd.Series({'endTime':'2009-01-01 15:58:00+09:00', 'bpm':40}).to_frame().T, df_], ignore_index=True)
-    #df_ = pd.concat([pd.Series({'endTime':'2009-01-01 15:59:00+09:00', 'bpm':40}).to_frame().T, df_], ignore_index=True)
-    #print(df_)
     while True:
         cnt += 1
         time_idx += 1
@@ -123,6 +139,12 @@ def bind_hours(df_):
     return res_list
 
 def stress_plot(stress_list):
+    
+    # 소켓 서버
+    server_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    server_socket.bind(('localhost', 3000))
+    server_socket.listen(1)
+    
     str_date = stress_list[0][0][:10]
     date = []
     date_stress = []
@@ -144,61 +166,85 @@ def stress_plot(stress_list):
     plt.legend()
     plt.grid(True)
     plt.tight_layout()
+    
+    #buf = io.BiyesIO()
+    
     # 이미지 저장
-    plt.savefig(f'C:/Users/AIA01/Desktop/project/PNUh/pnuh_page/hrv_proc/stress_score_{str_date}.png')
+    plt.savefig(f'./pnuh_page/hrv_proc/stress_score_{str_date}.png')
+    
+    #plt.savefig(buf, format='png')
+    #buf.seek(0)
+    #plot_data_base64 = base64.b64decode(buf.read()).devoce('utf-8')
+    #conn, addr = server_socket.accept()
+    #conn.snedall(plot_data_base64)
+    #conn.close()
+    
     #plt.show()
+    
+date_sys = 'aguuu'
+#date_sys = sys.argv[1]
+project_dir = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', '..'))
+file_path = os.path.join(project_dir, 'pnuh_page', 'hrv_proc', f"{date_sys}.txt")
+os.makedirs(os.path.dirname(file_path), exist_ok=True)
+with open(file_path, "w") as file:
+    file.write(f"Stress score for {date_sys}")
 
 ###################################################################
 # 홍소장님이 나중에 json 파일로 db에 올린다고 하셨기에, 필요 없을 예정 #
-with open('C:/Users/AIA01/Desktop/project/PNUh/pnuh_page/hrv_proc/health_data_HeartRateRecord_20240416_154527.json') as f:
-    j_data = json.load(f)
+# with open('./pnuh_page/hrv_proc/health_data_HeartRateRecord_20240416_154527.json') as f:
+#     j_data = json.load(f)
         
-endtime_ = []
-bpm_ = []
+# endtime_ = []
+# bpm_ = []
 
-for i in range(len(j_data)):
-    endtime_.append(pd.to_datetime(j_data[i]['endTime']))
-    bpm_.append(j_data[i]['samples'][0]['beatsPerMinute'])
+# for i in range(len(j_data)):
+#     endtime_.append(pd.to_datetime(j_data[i]['endTime']))
+#     bpm_.append(j_data[i]['samples'][0]['beatsPerMinute'])
     
-hrv_data = {
-    'endTime' : endtime_,
-    'bpm' : bpm_
-}
+# hrv_data = {
+#     'endTime' : endtime_,
+#     'bpm' : bpm_
+# }
 
-df_min = pd.DataFrame(hrv_data)
-df_min.drop_duplicates(ignore_index=True, inplace=True)
-####################################################################
+# df_min = pd.DataFrame(hrv_data)
+# df_min.drop_duplicates(ignore_index=True, inplace=True)
+# ####################################################################
 
-while True:
-    #if time.time
+
+# while True:
     
-    # ex) 240331_hrvs.txt -> 240331
-    json_file = [x for x in os.listdir('C:/Users/AIA01/Desktop/project/PNUh/pnuh_page/hrv_proc/') if '_hrvs' in x]
-    temp_date = json_file[0][:6]
-    # ex) 24-03-31
-    date_hrv = date_conv(temp_date)
+#     ###
+#     # 이 부분에 web에서 처리되어 날짜_hrvs.json 빈 파일 받을 예정
+#     ###
     
-    df = df_min.loc[df_min['endTime'].dt.date.astype(str).str.contains(date_hrv), :]
-    df.drop_duplicates(ignore_index=True, inplace=True)
+#     # ex) 240331_hrvs.txt -> 240331
+#     json_file = [x for x in os.listdir('./pnuh_page/hrv_proc/') if '_hrvs' in x]
+#     temp_date = json_file[0][:6]
+#     # ex) 24-03-31
+#     date_hrv = date_conv(temp_date)
     
-    df_hours = bind_hours(df)
+#     df = df_min.loc[df_min['endTime'].dt.date.astype(str).str.contains(date_hrv), :]
+#     df.drop_duplicates(ignore_index=True, inplace=True)
     
+#     df_hours = bind_hours(df)
     
+#     hrv_feature = get_time_domain_features(df['bpm'])
+#     time_hrv_data = []
+#     for i in range(len(df_hours)):
+#         time_hrv_data.append([str(df_hours[i]['endTime'][0]), str(df_hours[i]['endTime'][59]), get_time_domain_features(list(60000/df_hours[i]['bpm']))])
     
-    hrv_feature = get_time_domain_features(df['bpm'])
-    time_hrv_data = []
-    for i in range(len(df_hours)):
-        time_hrv_data.append([str(df_hours[i]['endTime'][0]), str(df_hours[i]['endTime'][59]), get_time_domain_features(list(60000/df_hours[i]['bpm']))])
-    
-    a = 3
-    
-    stress_ = []
-    for i in range(len(time_hrv_data)):
-        stress_.append([time_hrv_data[i][0][:16], hrv_stress(time_hrv_data[i][2])])
+#     stress_ = []
+#     for i in range(len(time_hrv_data)):
+#         stress_.append([time_hrv_data[i][0][:16], hrv_stress(time_hrv_data[i][2])])
         
-    stress_plot(stress_)
+#     # plot 저장, json data 저장
+#     stress_plot(stress_)
+#     df.to_json('./pnuh_page/hrv_proc/' + json_file[0], orient='records', date_format='iso')
     
-    df.to_json('C:/Users/AIA01/Desktop/project/PNUh/pnuh_page/hrv_proc/' + json_file[0], orient='records', date_format='iso')
+#     break
+    
+#     if len(json_file) == 0:
+#         time.sleep(7200)
     
     
     
